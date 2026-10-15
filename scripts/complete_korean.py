@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Fill missing Korean translations with machine translations, preserving existing work."""
+# One-time localization backfill; retains all approved pre-existing translations.
 import json
 import re
 import sys
