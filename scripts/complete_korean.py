@@ -11,7 +11,7 @@ from deep_translator import GoogleTranslator
 ROOT = Path(__file__).resolve().parents[1]
 EN = ROOT / "languages/en.json"
 KO = ROOT / "languages/ko.json"
-TOKEN = re.compile(r"(\\{[^{}]+\\}|<[^<>]+>|%[0-9]*[sdif]|\\\\[nr]|\\[[^\\]]+\\])")
+TOKEN = re.compile(r'(\{[^{}]+\}|<[^<>]+>|%[0-9]*[sdif])')
 
 def translated_with_tokens(engine, text):
     tokens = []
