@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "languages": {
+    "en": {
+      "file": "languages/en.json",
+      "version": "a765cd76ebed7633",
+      "sha256": "a765cd76ebed763332ec5560665c0a00b761149aa59d25db05e37b19eb743857",
+      "translated": 3669,
+      "total": 3669
+    },
+    "ko": {
+      "file": "languages/ko.json",
+      "version": "ca3d163bab055381",
+      "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+      "translated": 0,
+      "total": 3669
+    },
+    "pl": {
+      "file": "languages/pl.json",
+      "version": "5aa282d87a7d97b6",
+      "sha256": "5aa282d87a7d97b6461eedeb10f2ac7519fc65729a3b5e6d0821190bc39ee8bd",
+      "translated": 842,
+      "total": 3669
+    },
+    "ru": {
+      "file": "languages/ru.json",
+      "version": "da85e3577f22dc3d",
+      "sha256": "da85e3577f22dc3dca8f642cdbeeecf73a38bbc121d569f6ac34c1477d294005",
+      "translated": 630,
+      "total": 3669
+    },
+    "zh-Hans": {
+      "file": "languages/zh-Hans.json",
+      "version": "978981f838c29d86",
+      "sha256": "978981f838c29d861898bfb4e8d14498471dfd519044a1647ca5fbdce8e30b22",
+      "translated": 3669,
+      "total": 3669
+    }
+  }
+}
