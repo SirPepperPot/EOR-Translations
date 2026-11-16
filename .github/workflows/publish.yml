@@ -10,26 +10,46 @@ on:
     paths:
       - 'languages/**'
       - 'scripts/publish.py'
+      - '.github/workflows/publish.yml'
+      - 'manifest.json'
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
-  publish:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Validate packs and generate manifest
         run: python3 scripts/publish.py
-      - name: Verify generated manifest on pull requests
-        if: github.event_name == 'pull_request'
-        run: git diff --exit-code -- manifest.json || echo 'Manifest will be regenerated on merge'
-      - name: Commit published manifest
-        if: github.event_name != 'pull_request'
+
+  publish:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: publish-translation-manifest
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Publish manifest for latest main
         run: |
-          git add manifest.json
-          if ! git diff --cached --quiet -- manifest.json; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            python3 scripts/publish.py
+            git add manifest.json
+            if git diff --cached --quiet -- manifest.json; then exit 0; fi
             git commit -m "Publish validated translation manifest"
-            git push
-          fi
+            if git push origin HEAD:main; then exit 0; fi
+          done
+          echo "::error::Could not publish translation manifest after three attempts."
+          exit 1

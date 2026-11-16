@@ -12,28 +12,28 @@
       "file": "languages/ko.json",
       "version": "dc4d04d6d25995aa",
       "sha256": "dc4d04d6d25995aa75695c8701a9098568094aa03be24eefd2bfb3372fb9aea6",
-      "translated": 710,
+      "translated": 709,
       "total": 3669
     },
     "pl": {
       "file": "languages/pl.json",
       "version": "5aa282d87a7d97b6",
       "sha256": "5aa282d87a7d97b6461eedeb10f2ac7519fc65729a3b5e6d0821190bc39ee8bd",
-      "translated": 842,
+      "translated": 714,
       "total": 3669
     },
     "ru": {
       "file": "languages/ru.json",
       "version": "da85e3577f22dc3d",
       "sha256": "da85e3577f22dc3dca8f642cdbeeecf73a38bbc121d569f6ac34c1477d294005",
-      "translated": 630,
+      "translated": 610,
       "total": 3669
     },
     "zh-Hans": {
       "file": "languages/zh-Hans.json",
       "version": "978981f838c29d86",
       "sha256": "978981f838c29d861898bfb4e8d14498471dfd519044a1647ca5fbdce8e30b22",
-      "translated": 3669,
+      "translated": 1265,
       "total": 3669
     }
   }
