@@ -24,9 +24,9 @@
     },
     "ru": {
       "file": "languages/ru.json",
-      "version": "da85e3577f22dc3d",
-      "sha256": "da85e3577f22dc3dca8f642cdbeeecf73a38bbc121d569f6ac34c1477d294005",
-      "translated": 628,
+      "version": "1a4f9abf3db2fce0",
+      "sha256": "1a4f9abf3db2fce09ae077a9f31640bd7750407ddfe472e551f24bc48b07dbcb",
+      "translated": 5167,
       "total": 5307
     },
     "zh-Hans": {
