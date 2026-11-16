@@ -3,38 +3,38 @@
   "languages": {
     "en": {
       "file": "languages/en.json",
-      "version": "f72b96559f22de46",
-      "sha256": "f72b96559f22de461738be9dded17dff0e7ec53793edc8d37cdef435ebafa919",
-      "translated": 5307,
-      "total": 5307
+      "version": "d9d5fc10a715e650",
+      "sha256": "d9d5fc10a715e650acec23ece94761e962d1bc8f09e974c8ad61a84f07a28ba9",
+      "translated": 5309,
+      "total": 5309
     },
     "ko": {
       "file": "languages/ko.json",
       "version": "5e6f724f7feb6691",
       "sha256": "5e6f724f7feb66915af8ceb339589d8f7aeab568539e565709845ae8492fccc2",
       "translated": 5235,
-      "total": 5307
+      "total": 5309
     },
     "pl": {
       "file": "languages/pl.json",
       "version": "6269e54d8da96aae",
       "sha256": "6269e54d8da96aae0a050023de806596ffbfd32d134a3008d95b9d163524fd30",
       "translated": 5093,
-      "total": 5307
+      "total": 5309
     },
     "ru": {
       "file": "languages/ru.json",
       "version": "1a4f9abf3db2fce0",
       "sha256": "1a4f9abf3db2fce09ae077a9f31640bd7750407ddfe472e551f24bc48b07dbcb",
       "translated": 5167,
-      "total": 5307
+      "total": 5309
     },
     "zh-Hans": {
       "file": "languages/zh-Hans.json",
       "version": "dff493ec671804a8",
       "sha256": "dff493ec671804a86b428cde9605c4b58c4f19ce364036af1f34ae070bf2ea38",
       "translated": 5176,
-      "total": 5307
+      "total": 5309
     }
   }
 }
