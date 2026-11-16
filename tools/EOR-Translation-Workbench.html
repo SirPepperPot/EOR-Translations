@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EOR Translation Workbench</title>
+<style>
+:root{color-scheme:dark;--bg:#131416;--card:#1d2025;--ink:#eeebe3;--muted:#b8b6af;--line:#40434b;--accent:#f0cc83;--error:#ffaaa0}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+main{max-width:850px;margin:0 auto;padding:42px 22px 64px}header{margin-bottom:24px}
+.kicker{color:var(--accent);letter-spacing:.12em;text-transform:uppercase;font-size:.78rem;font-weight:700}
+h1{margin:.2em 0;font-size:clamp(1.9rem,5vw,2.7rem);line-height:1.13}h2{margin:0 0 8px;font-size:1.2rem}
+p{margin:.4rem 0 .9rem;color:var(--muted)}a{color:var(--accent)}section{padding:20px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin:14px 0}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.drop{display:block;border:1px dashed #666a76;border-radius:8px;padding:12px;background:#17191d}.drop.over{border-color:var(--accent);background:#2b261d}
+.drop strong,.drop small{display:block;margin:0 0 4px}.drop small,.note{color:var(--muted);font-size:.88rem}input[type=file]{max-width:100%;color:var(--muted)}label[for=lang]{margin-right:.5rem}
+select,button,.action{font:inherit;border:1px solid var(--line);background:#2a2c32;color:var(--ink);border-radius:7px;padding:8px 12px;text-decoration:none;display:inline-block}
+button.primary{background:var(--accent);color:#20180d;font-weight:700;border-color:transparent}button:disabled{opacity:.45;cursor:not-allowed}button:not(:disabled){cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.buttons{display:flex;flex-wrap:wrap;gap:8px;margin:.8rem 0}.error{color:var(--error)}code{color:#f0dbaa}details{margin-top:14px}summary{cursor:pointer;color:var(--accent)}
+@media(max-width:640px){.fields{grid-template-columns:1fr}main{padding:25px 14px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<div class="kicker">Enhanced Overhaul Remix</div>
+<h1>Translation Workbench</h1>
+<p>Prepare an upload for Google Translate and turn the result back into an EOR language pack. This page converts files locally. It does not upload anything.</p>
+</header>
+<section>
+<h2>1. Prepare a spreadsheet</h2>
+<label for="lang">Target language</label>
+<select id="lang">
+<option value="ko">Korean</option><option value="pl">Polish</option><option value="ru">Russian</option>
+<option value="zh-Hans">Chinese (Simplified)</option><option value="fr">French</option>
+<option value="it">Italian</option><option value="de">German</option><option value="es">Spanish (Spain)</option>
+<option value="pt-BR">Portuguese (Brazil)</option><option value="uk">Ukrainian</option>
+<option value="zh-Hant">Chinese (Traditional)</option><option value="ja">Japanese</option>
+</select>
+<div class="fields">
+<label class="drop" id="en-drop"><strong>English catalog</strong><small>Drop or choose <code>en.json</code>.</small><input id="en" type="file" accept=".json,application/json"></label>
+<label class="drop" id="existing-drop"><strong>Existing target pack (optional)</strong><small>Choose the target language first, then load its pack to keep valid translations and send only missing lines.</small><input id="existing" type="file" accept=".json,application/json"></label>
+</div>
+<div class="buttons"><button class="primary" id="export" disabled>Download spreadsheet</button><button id="clear" disabled>Clear existing pack</button></div>
+<p id="plan" role="status">Load the English catalog to start.</p>
+</section>
+<section>
+<h2>2. Translate on Google</h2>
+<p>On your PC, open Documents, choose English and your target language, and drop in the exported <code>.xlsx</code>. Download the translated spreadsheet when Google finishes.</p>
+<a class="action" href="https://translate.google.com/?op=docs" target="_blank" rel="noopener noreferrer">Open Google Translate Documents ↗</a>
+</section>
+<section>
+<h2>3. Get your EOR language pack</h2>
+<p>Keep this tab open, or reload the exact same English catalog, target and optional pack before importing.</p>
+<label class="drop" id="result-drop"><strong>Translated spreadsheet</strong><small>Drop or choose the <code>.xlsx</code> downloaded from Google.</small><input id="result" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled></label>
+<p id="result-status" role="status">Waiting for the translated spreadsheet.</p>
+<div class="buttons"><button class="primary" id="save" disabled>Download JSON</button><button id="report" disabled>Download review report</button></div>
+<details><summary>What gets checked?</summary><p>The program matches rows by number, verifies the workbook belongs to this export, restores placeholders and formatting, and skips blank, unchanged, or invalid translations. Download the review report for skipped rows. Google does not label the workbook reliably enough to verify the target language, so check the language on Google before translating.</p></details>
+</section>
+</main>
+<script>
+"use strict";
+const Codec = (() => {
+  const enc = new TextEncoder(), dec = new TextDecoder("utf-8", {fatal:true});
+  const maxJson = 2_000_000, maxBook = 10_000_000, maxPart = 16_000_000;
+  const TOKEN = /\{\{[A-Za-z][A-Za-z\d_]*\}\}|\{\s*\d+(?:\s*,\s*-?\d+)?(?:\s*:[^{}\r\n]*)?\s*\}|<\/?[A-Za-z][^<>\r\n]*>|\r\n|[\r\n\t]/g;
+  const MARKER = /Z[ \u00a0\u200b]*X[ \u00a0\u200b]*Q[ \u00a0\u200b]*([\d \u00a0\u200b]+?)[ \u00a0\u200b]*Q[ \u00a0\u200b]*X[ \u00a0\u200b]*Z/gi;
+  const text = (s) => enc.encode(s);
+  const xmlEscape = (s) => s.replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"})[ch]);
+  const blocks = (s) => s.match(TOKEN) || [];
+  const isTag = (s) => s.startsWith("<"), cleanToken = (s) => /^\r\n?$/.test(s) ? "\n" : s;
+  const lowerKey = (k) => k.toUpperCase();
+  const ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+  const docRel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+  const pkgRel = "http://schemas.openxmlformats.org/package/2006/relationships";
+  const crcTable = Uint32Array.from({length:256}, (_, v) => {
+    for (let bit=0;bit<8;bit++) v = (v >>> 1) ^ ((v & 1) ? 0xedb88320 : 0);
+    return v >>> 0;
+  });
+  function crc32(a) {
+    let s=0xffffffff; for (const b of a) s=(s >>> 8) ^ crcTable[(s ^ b)&255];
+    return (s ^ 0xffffffff) >>> 0;
+  }
+  function parseCatalog(raw) {
+    const src = raw.replace(/^\ufeff/,""), data = Object.create(null), seen = new Set();
+    const quoted = /"(?:[^"\\\u0000-\u001f]|\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4}))*"/y;
+    let i=0;
+    function ws(){while(/[ \r\n\t]/.test(src[i] ?? "")) i++;}
+    function eat(ch){ws();if(src[i++]!==ch) throw new Error("Expected a flat JSON object of strings.");}
+    function string(){
+      ws(); quoted.lastIndex=i; const m=quoted.exec(src);
+      if (!m) throw new Error("Every JSON key and value must be a string.");
+      i=quoted.lastIndex; return JSON.parse(m[0]);
+    }
+    eat("{"); ws();
+    if (src[i]!=="}") {
+      while (true) {
+        const k=string(); eat(":"); const v=string(); const folded=lowerKey(k);
+        if (!k || k.trim()!==k || seen.has(folded)) throw new Error("Blank, padded or duplicate JSON key: "+k);
+        seen.add(folded); data[k]=v; ws();
+        if(src[i]!==",") break; i++;
+      }
+    }
+    eat("}"); ws(); if(i!==src.length) throw new Error("Unexpected text after the JSON object.");
+    return data;
+  }
+  function validShape(source,target) {
+    if (typeof target!=="string" || !target.trim()) return false;
+    const a=blocks(source).map(cleanToken), b=blocks(target).map(cleanToken);
+    return JSON.stringify(a.filter(isTag))===JSON.stringify(b.filter(isTag)) &&
+      JSON.stringify(a.sort())===JSON.stringify(b.sort());
+  }
+  function edge(src) {
+    const left=(src.match(/^\s*/)||[""])[0], right=(src.match(/\s*$/)||[""])[0];
+    return {left,right,body:src.slice(left.length,src.length-right.length)};
+  }
+  function mask(src) {
+    const {left,right,body}=edge(src), saved=[];
+    const masked=body.replace(TOKEN,t=>{saved.push(t);return "ZXQ"+String(saved.length).padStart(4,"0")+"QXZ";});
+    if ((body.match(MARKER)||[]).length) throw new Error("Source text already contains a workbench marker.");
+    return {left,right,saved,masked};
+  }
+  function restore(src,plan,translated) {
+    if(typeof translated!=="string" || !translated.trim()) return {reason:"Empty or non-text cell"};
+    // Normalize only fullwidth ASCII in candidate marker spans, not the translation.
+    const ascii=(s)=>s.replace(/[０-９Ａ-Ｚａ-ｚ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xfee0));
+    let value=translated.trim().replace(/[ZzＺｚ][XxＸｘQqＱｑ0-9０-９ \u00a0\u200b]{6,40}[ZzＺｚ]/g,ascii);
+    const used=new Set(); let bad=false;
+    value=value.replace(MARKER,(m,num)=>{
+      const n=Number(num.replace(/\D/g,""));
+      if(!Number.isSafeInteger(n)||n<1||n>plan.saved.length||used.has(n)){bad=true;return m;}
+      used.add(n);return plan.saved[n-1];
+    });
+    if(bad||used.size!==plan.saved.length) return {reason:"Missing, duplicated or changed formatting marker"};
+    value=plan.left+value+plan.right;
+    if(!validShape(src,value)) return {reason:"Placeholder or formatting mismatch"};
+    if(value.trim()===src.trim()) return {reason:"Unchanged from English",unchanged:true};
+    if(/<\/?[a-z][^<>\r\n]*>/i.test(value) && !blocks(src).some(isTag)) return {reason:"Unexpected markup"};
+    return {value};
+  }
+  async function prepare(english,existing,language) {
+    const kept=Object.create(null), jobs=[], preflight=[];
+    const entries=Object.entries(english);
+    if(!entries.length || entries.length>25000 || entries.some(([,v])=>!v.trim())) throw new Error("English catalog must contain 1–25,000 non-empty strings.");
+    const lookup=new Map(Object.entries(existing).map(([k,v])=>[lowerKey(k),v]));
+    for(const [key,source] of entries){
+      const previous=lookup.get(lowerKey(key));
+      if(previous && previous.trim()!==source.trim() && validShape(source,previous)){kept[key]=previous;continue;}
+      if(!/\p{L}/u.test(source.replace(TOKEN,""))){preflight.push({key,reason:"No letters to translate",source});continue;}
+      try {
+        const plan=mask(source);
+        if(plan.masked.length>32767 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/.test(plan.masked)) throw new Error("Text cannot be stored in an Excel cell.");
+        jobs.push({id:jobs.length+1,key,source,plan});
+      } catch(err) {preflight.push({key,reason:err.message,source});}
+    }
+    const identity=text(JSON.stringify(["EOR-XLSX-1",language,entries,Object.entries(kept)]));
+    const digest=new Uint8Array(await crypto.subtle.digest("SHA-256",identity));
+    const id=[...digest.subarray(0,6)].reduce((a,b)=>a*256+b,0);
+    return {language,entries,kept,jobs,preflight,id};
+  }
+  function zipStore(parts) {
+    const files=Object.entries(parts).map(([name,s])=>({name:text(name),body:text(s)}));
+    const size=files.reduce((n,f)=>n+76+2*f.name.length+f.body.length,22);
+    const out=new Uint8Array(size), v=new DataView(out.buffer);
+    const w=(p,n)=>v.setUint16(p,n,true), d=(p,n)=>v.setUint32(p,n,true);
+    let pos=0;
+    for(const f of files){
+      f.offset=pos; f.crc=crc32(f.body);
+      d(pos,0x04034b50);w(pos+4,20);w(pos+12,33);d(pos+14,f.crc);d(pos+18,f.body.length);d(pos+22,f.body.length);w(pos+26,f.name.length);
+      out.set(f.name,pos+30);out.set(f.body,pos+30+f.name.length);
+      pos+=30+f.name.length+f.body.length;
+    }
+    const central=pos;
+    for(const f of files){
+      d(pos,0x02014b50);w(pos+4,20);w(pos+6,20);w(pos+14,33);d(pos+16,f.crc);d(pos+20,f.body.length);d(pos+24,f.body.length);
+      w(pos+28,f.name.length);d(pos+42,f.offset);out.set(f.name,pos+46);pos+=46+f.name.length;
+    }
+    d(pos,0x06054b50);w(pos+8,files.length);w(pos+10,files.length);d(pos+12,pos-central);d(pos+16,central);
+    return out;
+  }
+  function makeWorkbook(plan) {
+    const rows=['<row r="1"><c r="A1"><v>0</v></c><c r="B1"><v>'+plan.id+'</v></c></row>'];
+    for(const {id,plan:{masked}} of plan.jobs){
+      const i=id+1, content=xmlEscape(masked.replace(/_x[0-9a-fA-F]{4}_/g,m=>"_x005F_"+m.slice(1)));
+      rows.push('<row r="'+i+'"><c r="A'+i+'"><v>'+id+'</v></c><c r="B'+i+'" t="inlineStr"><is><t xml:space="preserve">'+content+'</t></is></c></row>');
+    }
+    const book=zipStore({
+      "[Content_Types].xml":'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>',
+      "_rels/.rels":'<Relationships xmlns="'+pkgRel+'"><Relationship Id="rId1" Type="'+docRel+'/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+      "xl/workbook.xml":'<workbook xmlns="'+ns+'" xmlns:r="'+docRel+'"><sheets><sheet name="EOR" sheetId="1" r:id="rId1"/></sheets></workbook>',
+      "xl/_rels/workbook.xml.rels":'<Relationships xmlns="'+pkgRel+'"><Relationship Id="rId1" Type="'+docRel+'/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+      "xl/worksheets/sheet1.xml":'<worksheet xmlns="'+ns+'"><dimension ref="A1:B'+rows.length+'"/><cols><col min="1" max="1" width="12" customWidth="1"/><col min="2" max="2" width="95" customWidth="1"/></cols><sheetData>'+rows.join("")+'</sheetData></worksheet>'
+    });
+    if(book.length>maxBook) throw new Error("The workbook exceeds Google's 10 MB upload limit.");
+    return book;
+  }
+  function zipRead(bytes) {
+    if(bytes.length<22||bytes.length>maxBook) throw new Error("Select an XLSX file under 10 MB.");
+    const v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+    const w=p=>v.getUint16(p,true),d=p=>v.getUint32(p,true);
+    let end=bytes.length-22;
+    while(end>=Math.max(0,bytes.length-65557) && !(d(end)===0x06054b50 && end+22+w(end+20)===bytes.length)) end--;
+    if(end<0||end<bytes.length-65557||w(end+4)||w(end+6)||w(end+8)!==w(end+10)||w(end+10)>1000) throw new Error("Invalid XLSX ZIP container.");
+    let pos=d(end+16), limit=pos+d(end+12);
+    if(limit>end || pos>limit) throw new Error("Invalid XLSX directory.");
+    const index=new Map();
+    for(let i=0;i<w(end+10);i++){
+      if(pos+46>limit||d(pos)!==0x02014b50) throw new Error("Invalid XLSX directory entry.");
+      const len=w(pos+28), next=pos+46+len+w(pos+30)+w(pos+32);
+      if(next>limit) throw new Error("Truncated XLSX directory.");
+      const name=dec.decode(bytes.subarray(pos+46,pos+46+len));
+      if(index.has(name)) throw new Error("Duplicate entry in XLSX archive.");
+      index.set(name,{flags:w(pos+8),method:w(pos+10),crc:d(pos+16),length:d(pos+20),size:d(pos+24),offset:d(pos+42)});
+      pos=next;
+    }
+    return async function read(name, optional=false){
+      const z=index.get(name);
+      if(!z && optional) return null;
+      if(!z||z.offset+30>limit||d(z.offset)!==0x04034b50||z.size>maxPart||z.flags&1) throw new Error("Missing, encrypted, or oversized XLSX worksheet part.");
+      const start=z.offset+30+w(z.offset+26)+w(z.offset+28), end=start+z.length;
+      if(end>limit||end<start) throw new Error("Truncated XLSX content.");
+      let raw=bytes.subarray(start,end);
+      if(z.method===8){
+        const reader=new Blob([raw]).stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader();
+        const out=new Uint8Array(z.size);
+        let at=0;
+        while(true){
+          const {done,value}=await reader.read();
+          if(done) break;
+          if(at+value.length>z.size){await reader.cancel();throw new Error("XLSX content exceeds declared size.");}
+          out.set(value,at);at+=value.length;
+        }
+        if(at!==z.size) throw new Error("Truncated compressed XLSX content.");
+        raw=out;
+      }else if(z.method!==0) throw new Error("Unsupported XLSX compression.");
+      if(raw.length!==z.size||crc32(raw)!==z.crc) throw new Error("Damaged XLSX part.");
+      return dec.decode(raw);
+    };
+  }
+  function xml(s) {
+    if(/<!DOCTYPE|<!ENTITY/i.test(s)) throw new Error("Unsupported XML declaration in workbook.");
+    const doc=new DOMParser().parseFromString(s,"application/xml");
+    if(doc.getElementsByTagName("parsererror").length) throw new Error("Invalid spreadsheet XML.");
+    return doc;
+  }
+  function nodes(container,tag){return Array.from(container.getElementsByTagNameNS("*",tag));}
+  function xlsxText(s){return s.replace(/_x([0-9a-fA-F]{4})_/g,(_,hex)=>String.fromCharCode(parseInt(hex,16)));}
+  function joinedText(node){return xlsxText(nodes(node,"t").filter(n=>n.parentElement?.localName!=="rPh").map(n=>n.textContent).join(""));}
+  async function readWorkbook(bytes,limit) {
+    const read=zipRead(bytes);
+    const wb=xml(await read("xl/workbook.xml")), rels=xml(await read("xl/_rels/workbook.xml.rels"));
+    const first=nodes(wb,"sheet")[0];
+    if(!first) throw new Error("The translated workbook has no worksheet.");
+    const id=first.getAttributeNS(docRel,"id") || first.getAttribute("r:id");
+    const sheet=nodes(rels,"Relationship").find(n=>n.getAttribute("Id")===id && /\/worksheet$/.test(n.getAttribute("Type")||""));
+    if(!sheet||sheet.getAttribute("TargetMode")==="External") throw new Error("The first spreadsheet sheet is not an embedded worksheet.");
+    const pathFor=(rel)=>{
+      const dest=rel.getAttribute("Target")||"";
+      if(!/^[a-zA-Z0-9._/ -]+$/.test(dest)||dest.split("/").includes("..")) throw new Error("Unsupported spreadsheet part location.");
+      return dest.startsWith("/")?dest.slice(1):"xl/"+dest;
+    };
+    const sharedRel=nodes(rels,"Relationship").find(n=>/\/sharedStrings$/.test(n.getAttribute("Type")||""));
+    const sharedXml=await read(sharedRel?pathFor(sharedRel):"xl/sharedStrings.xml",!sharedRel);
+    const shared=sharedXml?nodes(xml(sharedXml),"si").map(joinedText):[];
+    const rows=nodes(xml(await read(pathFor(sheet))),"row");
+    if(rows.length>limit+16) throw new Error("The spreadsheet has more rows than this export.");
+    return rows.map(row=>{
+      const cells=new Map(Array.from(row.children).filter(c=>c.localName==="c").map(c=>[(c.getAttribute("r")||"").replace(/\d+$/,""),c]));
+      function get(col){
+        const c=cells.get(col);
+        if(!c || nodes(c,"f").length) return "";
+        const v=nodes(c,"v")[0]?.textContent || "", type=c.getAttribute("t");
+        if(type==="inlineStr") return joinedText(c);
+        if(type==="s") return shared[Number(v)] ?? "";
+        if(type==="e"||type==="b"||type==="d") return "";
+        return xlsxText(v);
+      }
+      return [get("A").trim(),get("B")];
+    });
+  }
+  function combine(plan,rows) {
+    const byId=new Map();
+    for(const [raw,value] of rows){
+      if(!raw && !value) continue;
+      if(!/^\d+$/.test(raw)) throw new Error("A spreadsheet row is missing its numeric ID.");
+      const id=Number(raw);
+      if(!Number.isSafeInteger(id)||id<0||id>plan.jobs.length||byId.has(id)) throw new Error("Unexpected or repeated spreadsheet row ID: "+raw);
+      byId.set(id,value);
+    }
+    if(byId.get(0)?.trim()!==String(plan.id)) throw new Error("This workbook belongs to another export. Load the same catalog, target language and existing pack used to create it.");
+    const translated=Object.create(null), issues=[...plan.preflight];
+    let added=0, unchanged=0;
+    for(const job of plan.jobs){
+      const {id,key,source,plan:maskPlan}=job;
+      const raw=byId.get(id), result=raw===undefined?{reason:"Row missing from spreadsheet"}:restore(source,maskPlan,raw);
+      if(result.value!==undefined){translated[key]=result.value;added++;}
+      else {issues.push({key,rowId:id,reason:result.reason,source,returned:raw??null});if(result.unchanged) unchanged++;}
+    }
+    const pack=Object.create(null);
+    for(const [key] of plan.entries){
+      const value=plan.kept[key]??translated[key];
+      if(value!==undefined) pack[key]=value;
+    }
+    return {pack,added,unchanged,issues};
+  }
+  return {parseCatalog,prepare,makeWorkbook,readWorkbook,combine,maxJson,maxBook};
+})();
+const ui = Object.fromEntries(["lang","en","existing","result","export","clear","save","report","plan","result-status"].map(id=>[id,document.getElementById(id)]));
+const state={english:null,existing:Object.create(null),packName:"",plan:null,output:null,seq:0};
+const XLSX="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const count=(n)=>Number(n).toLocaleString("en-US");
+function status(el,message,error=false){el.textContent=message;el.classList.toggle("error",error);}
+function download(content,name,type) {
+  const link=document.createElement("a"), url=URL.createObjectURL(new Blob([content],{type}));
+  link.href=url;link.download=name;document.body.append(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function resetResult(){
+  ui.save.disabled=ui.report.disabled=true; ui.save.textContent="Download JSON";state.output=null;
+  ui.result.value="";status(ui["result-status"],"Waiting for the translated spreadsheet.");
+}
+async function rebuild(){
+  const seq=++state.seq;
+  state.plan=null;ui.export.disabled=ui.result.disabled=true;resetResult();
+  if(!state.english){status(ui.plan,"Load the English catalog to start.");return;}
+  status(ui.plan,"Checking source strings…");
+  try{
+    const p=await Codec.prepare(state.english,state.existing,ui.lang.value);
+    if(seq!==state.seq) return;
+    state.plan=p;ui.export.disabled=ui.result.disabled=!p.jobs.length;
+    status(ui.plan,count(p.entries.length)+" English entries · "+count(Object.keys(p.kept).length)+" existing translations kept · "+count(p.jobs.length)+" rows to send"+(p.preflight.length?" · "+count(p.preflight.length)+" not sent":"")+(p.jobs.length?".":". No spreadsheet needed."));
+  }catch(err){if(seq===state.seq)status(ui.plan,err.message,true);}
+}
+async function catalogFile(file,side){
+  if(!file.name.toLowerCase().endsWith(".json")||file.size>Codec.maxJson) throw new Error("Choose a JSON file under 2 MB.");
+  const catalog=Codec.parseCatalog(await file.text());
+  if(side==="english") state.english=catalog;
+  else {
+    const code=file.name.replace(/\.json$/i,"").toLowerCase();
+    if(code==="en" || Array.from(ui.lang.options).some(o=>o.value.toLowerCase()===code && o.value!==ui.lang.value))
+      throw new Error("The existing pack does not match the selected target language.");
+    state.existing=catalog;state.packName=file.name;ui.clear.disabled=false;
+  }
+  await rebuild();
+}
+function drag(id,input,fn,errorTarget){
+  const el=document.getElementById(id);
+  async function load(file){if(file){try{await fn(file);}catch(err){input.value="";status(errorTarget,err.message,true);}}}
+  input.addEventListener("change",()=>load(input.files[0]));
+  for(const event of ["dragenter","dragover"]){el.addEventListener(event,e=>{e.preventDefault();if(!input.disabled)el.classList.add("over");});}
+  el.addEventListener("dragleave",()=>el.classList.remove("over"));
+  el.addEventListener("drop",e=>{e.preventDefault();el.classList.remove("over");if(!input.disabled)load(e.dataTransfer.files[0]);});
+}
+drag("en-drop",ui.en,f=>catalogFile(f,"english"),ui.plan);
+drag("existing-drop",ui.existing,f=>catalogFile(f,"existing"),ui.plan);
+ui.lang.addEventListener("change",()=>{
+  if(state.packName) {state.existing=Object.create(null);state.packName="";ui.existing.value="";ui.clear.disabled=true;}
+  rebuild();
+});
+ui.clear.addEventListener("click",()=>{
+  state.existing=Object.create(null);state.packName="";ui.existing.value="";ui.clear.disabled=true;rebuild();
+});
+ui.export.addEventListener("click",()=>{
+  try{const p=state.plan;download(Codec.makeWorkbook(p),"EOR-"+p.language+"-upload.xlsx",XLSX);}
+  catch(err){status(ui.plan,err.message,true);}
+});
+drag("result-drop",ui.result,async file=>{
+  const p=state.plan;
+  resetResult();
+  if(!p) throw new Error("Load the export's English catalog first.");
+  if(!file.name.toLowerCase().endsWith(".xlsx")||file.size>Codec.maxBook) throw new Error("Choose the returned XLSX file under 10 MB.");
+  status(ui["result-status"],"Matching rows and checking formatting…");
+  const rows=await Codec.readWorkbook(new Uint8Array(await file.arrayBuffer()),p.jobs.length);
+  if(state.plan!==p) return;
+  const out=Codec.combine(p,rows);
+  state.output=out;ui.report.disabled=false;ui.save.disabled=!Object.keys(out.pack).length;
+  ui.save.textContent=out.issues.length?"Download JSON draft":"Download JSON";
+  status(ui["result-status"],count(out.added)+" new translations · "+count(Object.keys(p.kept).length)+" existing kept · "+count(out.issues.length)+" lines not added"+(out.unchanged?" ("+count(out.unchanged)+" unchanged)":"")+(out.issues.length?". Review the report. Missing keys fall back to English.":"."));
+},ui["result-status"]);
+const json=(x)=>JSON.stringify(x,null,2)+"\n";
+ui.save.addEventListener("click",()=>download(json(state.output.pack),state.plan.language+".json","application/json"));
+ui.report.addEventListener("click",()=>{
+  const p=state.plan,o=state.output;
+  download(json({language:p.language,catalogEntries:p.entries.length,kept:Object.keys(p.kept).length,added:o.added,notAdded:o.issues.length,issues:o.issues}),"EOR-"+p.language+"-review.json","application/json");
+});
+</script>
+</body>
+</html>
