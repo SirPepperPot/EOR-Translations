@@ -5224,5 +5224,14 @@
   "EOR_GAME_LABEL_UNKNOWN": "Unknown",
   "EOR_GAME_LABEL_VANILLA": "Vanilla",
   "EOR_GAME_LABEL_EOR": "EOR",
-  "EOR_SPECIES_WITH_GENDER": "{0} {1}"
+  "EOR_SPECIES_WITH_GENDER": "{0} {1}",
+  "EOR_CODEX_STATUS": "Status",
+  "EOR_TOOLS_SYNTHETIC_CLASS_LABEL": "[{0:D3}] {1}",
+  "EOR_TOOLS_SYNTHETIC_CLASS_DESCRIPTION": "Test slot #{0:D3} mapped to {1}.",
+  "EOR_TOOLS_QA_READY": "READY",
+  "EOR_TOOLS_QA_CHECK_LOG": "CHECK LOG",
+  "EOR_TOOLS_QA_MISSING": "MISSING",
+  "EOR_TOOLS_QA_ACTIVE": "ACTIVE",
+  "EOR_TOOLS_QA_INACTIVE": "inactive",
+  "EOR_TOOLS_TESTER_TRIBUTE_REPORT": "Status: {0}\nKeepsakes: {1}/{2}\nVisual fallbacks: {3}/{2}\nWorld events: {4}/3\nNative event sources: {5}/3\nUnseen Company Codex: {6}\nField Tested: {7}\nLoading quotes: {8}/4"
 }
