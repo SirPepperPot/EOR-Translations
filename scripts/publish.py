@@ -33,7 +33,9 @@ def load(path):
     return document, data
 
 def placeholders(value):
-    return sorted(re.findall(r"(?<!\{)\{\s*([0-9]+)(?:\s*,\s*-?[0-9]+)?(?:\s*:[^{}]*)?\s*\}(?!\})", value))
+    numbered = re.findall(r"(?<!\{)\{\s*([0-9]+)(?:\s*,\s*-?[0-9]+)?(?:\s*:[^{}]*)?\s*\}(?!\})", value)
+    named = re.findall(r"\{\{[A-Z][A-Z0-9_]+\}\}", value)
+    return sorted(numbered + named)
 
 def main():
     english, _ = load(LANGUAGES / "en.json")

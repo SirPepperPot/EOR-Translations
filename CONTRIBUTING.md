@@ -2,7 +2,7 @@
 
 1. Use [languages/en.json](languages/en.json) as the template.
 2. In your language's JSON, keep each key unchanged and translate its value. Leave unfinished keys out so EOR can fall back to its shipped text.
-3. Keep numbered placeholders such as `{0}` and `{1}`, including any numeric formatting. You can reorder placeholders to fit the language. Keep rich-text tags and intentional line breaks.
+3. Keep numbered placeholders such as `{0}` and `{1}`, including any numeric formatting, and game markers such as `{{QUEST_COMPLETION_TRACKER}}`. You can reorder them to fit the language. Keep rich-text tags and intentional line breaks.
 4. Open a pull request. After merge, GitHub Actions validates the packs and publishes their hashes in `manifest.json`.
 5. EOR follows the game language by default. The updater downloads changed packs in the background and they take effect on the next launch.
 
