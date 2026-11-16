@@ -31,9 +31,9 @@
     },
     "zh-Hans": {
       "file": "languages/zh-Hans.json",
-      "version": "978981f838c29d86",
-      "sha256": "978981f838c29d861898bfb4e8d14498471dfd519044a1647ca5fbdce8e30b22",
-      "translated": 1292,
+      "version": "dff493ec671804a8",
+      "sha256": "dff493ec671804a86b428cde9605c4b58c4f19ce364036af1f34ae070bf2ea38",
+      "translated": 5176,
       "total": 5307
     }
   }
