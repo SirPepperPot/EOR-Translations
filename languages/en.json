@@ -5305,5 +5305,7 @@
   "EOR_LORE_TAG_PARASITIC_ELITE": "Parasitic Elite",
   "EOR_LORE_TAG_ROYALDROLL_KILL_ACHIEVEMENT": "Royal Droll",
   "EOR_LORE_TAG_SKELETON": "Skeleton",
-  "EOR_LORE_TAG_WATCHER": "Watcher"
+  "EOR_LORE_TAG_WATCHER": "Watcher",
+  "EOR_LOBBY_CHECK_PENDING": "EOR is checking multiplayer compatibility. Please wait before starting.",
+  "EOR_LOBBY_CHECK_REJECTED": "An incompatible player is still in the lobby. See the EOR log for details."
 }
