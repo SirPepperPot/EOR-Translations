@@ -17,9 +17,9 @@
     },
     "pl": {
       "file": "languages/pl.json",
-      "version": "5aa282d87a7d97b6",
-      "sha256": "5aa282d87a7d97b6461eedeb10f2ac7519fc65729a3b5e6d0821190bc39ee8bd",
-      "translated": 836,
+      "version": "6269e54d8da96aae",
+      "sha256": "6269e54d8da96aae0a050023de806596ffbfd32d134a3008d95b9d163524fd30",
+      "translated": 5093,
       "total": 5307
     },
     "ru": {
